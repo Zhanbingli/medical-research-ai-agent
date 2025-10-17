@@ -1,28 +1,37 @@
 # Core dependencies
-streamlit==1.31.0
-python-dotenv==1.0.1
+streamlit>=1.32.0
+python-dotenv>=1.0.1
 
 # AI Models
-anthropic==0.18.1
-openai==1.12.0  # For Kimi AI (uses OpenAI-compatible API)
-dashscope==1.14.1  # For Alibaba Qwen/通义千问
+anthropic>=0.21.0  # Updated for latest features
+openai>=1.14.0  # For Kimi AI (uses OpenAI-compatible API)
+dashscope>=1.14.1  # For Alibaba Qwen/通义千问
 
 # PubMed and data fetching
-biopython==1.83
-requests==2.31.0
-httpx==0.26.0
+biopython>=1.83
+requests>=2.31.0
+httpx>=0.27.0
 
 # Data processing
-pandas==2.2.0
-numpy==1.26.3
+pandas>=2.2.0
+numpy>=1.26.4
 
 # PDF processing (optional for MVP, can add later)
-PyPDF2==3.0.1
-pypdf==4.0.1
+PyPDF2>=3.0.1
+pypdf>=4.1.0
 
 # Caching
-diskcache==5.6.3
+diskcache>=5.6.3
 
 # Utilities
-python-dateutil==2.8.2
-tqdm==4.66.1
+python-dateutil>=2.9.0
+tqdm>=4.66.2
+
+# Testing (optional but recommended)
+pytest>=8.1.0
+pytest-cov>=4.1.0
+
+# Code quality (optional but recommended)
+black>=24.2.0
+flake8>=7.0.0
+mypy>=1.9.0
