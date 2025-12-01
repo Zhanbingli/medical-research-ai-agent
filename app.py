@@ -50,6 +50,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+def toast_error(message: str):
+    """Show a quick user-facing error toast."""
+    st.toast(f"❌ {message}", icon="⚠️")
+
+
 def get_provider_badge(provider: str) -> str:
     """Get HTML badge for AI provider."""
     badges = {
@@ -67,6 +72,7 @@ def initialize_clients():
         analyzer = MultiAIAnalyzer()
         return pubmed, analyzer
     except ValueError as e:
+        toast_error(str(e))
         st.error(f"Configuration Error: {e}")
         st.info("Please set at least one AI API key in your .env file")
         return None, None
@@ -119,25 +125,33 @@ def display_article(article, idx, analyzer=None, selected_provider=None):
 
             with col1:
                 if st.button(f"🤖 AI Summary", key=f"summary_{idx}"):
-                    with st.spinner(f"Generating summary with {selected_provider.upper()}..."):
-                        start_time = time.time()
-                        summary = analyzer.summarize_article(
-                            article, style="detailed", provider=selected_provider
-                        )
-                        elapsed = time.time() - start_time
+                    try:
+                        with st.spinner(f"Generating summary with {selected_provider.upper()}..."):
+                            start_time = time.time()
+                            summary = analyzer.summarize_article(
+                                article, style="detailed", provider=selected_provider
+                            )
+                            elapsed = time.time() - start_time
 
-                    st.info(summary)
-                    st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
+                        st.info(summary)
+                        st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
+                    except Exception as e:
+                        toast_error(f"Summary failed: {e}")
+                        st.error("Failed to generate summary. Please try again.")
 
             with col2:
                 if st.button(f"🔑 Key Points", key=f"keypoints_{idx}"):
-                    with st.spinner(f"Extracting key points with {selected_provider.upper()}..."):
-                        start_time = time.time()
-                        key_points = analyzer.extract_key_points(article, provider=selected_provider)
-                        elapsed = time.time() - start_time
+                    try:
+                        with st.spinner(f"Extracting key points with {selected_provider.upper()}..."):
+                            start_time = time.time()
+                            key_points = analyzer.extract_key_points(article, provider=selected_provider)
+                            elapsed = time.time() - start_time
 
-                    st.info(key_points)
-                    st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
+                        st.info(key_points)
+                        st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
+                    except Exception as e:
+                        toast_error(f"Key point extraction failed: {e}")
+                        st.error("Failed to extract key points. Please try again.")
 
         st.divider()
 
@@ -158,6 +172,7 @@ def main():
     available_providers = analyzer.get_available_providers()
 
     if not available_providers:
+        toast_error("No AI providers available")
         st.error("No AI providers available. Please configure API keys in .env")
         st.stop()
 
@@ -240,14 +255,19 @@ def main():
             st.warning("Please enter a search query")
             st.stop()
 
-        with st.spinner(f"Searching PubMed for '{search_query}'..."):
-            articles = pubmed.search_and_fetch(
-                query=search_query,
-                max_results=max_results,
-                sort=sort_order,
-                min_date=min_date,
-                max_date=max_date
-            )
+        try:
+            with st.spinner(f"Searching PubMed for '{search_query}'..."):
+                articles = pubmed.search_and_fetch(
+                    query=search_query,
+                    max_results=max_results,
+                    sort=sort_order,
+                    min_date=min_date,
+                    max_date=max_date
+                )
+        except Exception as e:
+            toast_error(f"PubMed search failed: {e}")
+            st.error("PubMed search failed. Please check your network or try again.")
+            st.stop()
 
         if not articles:
             st.warning("No articles found. Try a different query.")
@@ -284,18 +304,22 @@ def main():
             )
 
             if st.button("🧠 Generate Synthesis", type="primary"):
-                with st.spinner(f"Analyzing articles with {selected_provider.upper()}..."):
-                    start_time = time.time()
-                    synthesis = analyzer.synthesize_multiple(
-                        articles,
-                        research_question if research_question else None,
-                        provider=selected_provider
-                    )
-                    elapsed = time.time() - start_time
+                try:
+                    with st.spinner(f"Analyzing articles with {selected_provider.upper()}..."):
+                        start_time = time.time()
+                        synthesis = analyzer.synthesize_multiple(
+                            articles,
+                            research_question if research_question else None,
+                            provider=selected_provider
+                        )
+                        elapsed = time.time() - start_time
 
-                st.markdown("### 📝 Synthesis Results")
-                st.markdown(synthesis)
-                st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
+                    st.markdown("### 📝 Synthesis Results")
+                    st.markdown(synthesis)
+                    st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
+                except Exception as e:
+                    toast_error(f"Synthesis failed: {e}")
+                    st.error("Failed to synthesize articles. Please try again.")
 
         with tab3:
             st.subheader("Ask Questions About the Literature")
@@ -307,14 +331,18 @@ def main():
             )
 
             if st.button("❓ Get Answer", type="primary") and question:
-                with st.spinner(f"Finding answer with {selected_provider.upper()}..."):
-                    start_time = time.time()
-                    answer = analyzer.answer_question(articles, question, provider=selected_provider)
-                    elapsed = time.time() - start_time
+                try:
+                    with st.spinner(f"Finding answer with {selected_provider.upper()}..."):
+                        start_time = time.time()
+                        answer = analyzer.answer_question(articles, question, provider=selected_provider)
+                        elapsed = time.time() - start_time
 
-                st.markdown("### 💡 Answer")
-                st.info(answer)
-                st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
+                    st.markdown("### 💡 Answer")
+                    st.info(answer)
+                    st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
+                except Exception as e:
+                    toast_error(f"Q&A failed: {e}")
+                    st.error("Failed to generate an answer. Please try again.")
 
         with tab4:
             st.subheader("🔬 Compare AI Providers")
@@ -349,16 +377,20 @@ QWEN_API_KEY=your_key_here
 
                     task_type = "summarize" if comparison_task == "Summarize" else "extract_key_points"
 
-                    with st.spinner("Generating responses from all providers..."):
-                        results = analyzer.compare_ai_responses(
-                            article,
-                            task=task_type,
-                            style="concise"
-                        )
+                    try:
+                        with st.spinner("Generating responses from all providers..."):
+                            results = analyzer.compare_ai_responses(
+                                article,
+                                task=task_type,
+                                style="concise"
+                            )
 
-                    for provider, response in results.items():
-                        with st.expander(f"🤖 {provider.upper()}", expanded=True):
-                            st.markdown(response)
+                        for provider, response in results.items():
+                            with st.expander(f"🤖 {provider.upper()}", expanded=True):
+                                st.markdown(response)
+                    except Exception as e:
+                        toast_error(f"Comparison failed: {e}")
+                        st.error("Failed to compare providers. Please try again.")
 
     else:
         # Welcome message

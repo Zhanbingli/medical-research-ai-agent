@@ -11,11 +11,13 @@ Improvements:
 """
 from typing import Optional, Dict, Any, List, Tuple
 import os
+import time
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from src.utils.logger import ensure_logging
+from src.utils.retry_handler import RetryHandler
 
 ensure_logging()
 logger = logging.getLogger(__name__)
@@ -323,16 +325,26 @@ class AIClientManager:
         "qwen": QwenClient
     }
 
-    def __init__(self, enable_cache: bool = True):
+    def __init__(self, enable_cache: bool = True, provider_retry_attempts: Optional[int] = None):
         """
         Initialize manager with available clients.
 
         Args:
             enable_cache: Enable caching for AI responses (default: True)
+            provider_retry_attempts: Retry attempts per provider on transient errors
         """
         self.clients: Dict[str, BaseAIClient] = {}
         self.enable_cache = enable_cache
         self._cache_manager = None
+        # Retry once by default; can be tuned via env or argument
+        env_retries = os.getenv("AI_PROVIDER_MAX_RETRIES")
+        self._provider_retry_attempts = max(
+            1,
+            provider_retry_attempts
+            if provider_retry_attempts is not None
+            else int(env_retries) if env_retries and env_retries.isdigit() else 2
+        )
+        self._retry_handler = RetryHandler(max_retries=self._provider_retry_attempts)
 
         # Lazy load cache manager if enabled
         if self.enable_cache:
@@ -503,12 +515,39 @@ class AIClientManager:
 
         # Generate new response
         logger.info(f"Generating new response with {provider}")
-        ai_response = client.generate(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            max_tokens=max_tokens,
-            temperature=temperature
-        )
+        last_error = None
+        ai_response: Optional[AIResponse] = None
+
+        for attempt in range(self._retry_handler.max_retries):
+            ai_response = client.generate(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+
+            if ai_response.error is None:
+                break
+
+            last_error = ai_response.error
+            if attempt < self._retry_handler.max_retries - 1:
+                delay = self._retry_handler._calculate_delay(attempt)
+                logger.warning(
+                    f"{provider} call failed (attempt {attempt + 1}/{self._retry_handler.max_retries}): "
+                    f"{last_error}. Retrying in {delay:.1f}s"
+                )
+                time.sleep(delay)
+
+        if ai_response is None:
+            ai_response = AIResponse(
+                content="AI provider call failed: no response",
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                model="unknown",
+                provider=provider,
+                error=last_error or "unknown error"
+            )
 
         # Cache response if enabled and valid (no error)
         if should_cache and self._cache_manager and ai_response.error is None:
