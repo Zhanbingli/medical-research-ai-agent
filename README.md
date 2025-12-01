@@ -1,5 +1,7 @@
 # 📚 Medical Literature Agent - Multi-AI Edition
 
+![screenshot](screenshot.png)
+
 An AI assistant for searching, analyzing, and synthesizing medical literature from PubMed. Built with Python + Streamlit, supporting **multiple AI providers**: Claude, Kimi, and Qwen.
 
 ## ✨ Features
@@ -12,10 +14,10 @@ An AI assistant for searching, analyzing, and synthesizing medical literature fr
 
 ## 🚀 Quick Start (Docker)
 
-1) Copy env template and add at least one API key  
+1) Copy env template and add at least one API key
 `cp .env.example .env`
 
-2) Start service  
+2) Start service
 `docker-compose up --build`
 
 Open: http://localhost:8501
