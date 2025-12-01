@@ -106,6 +106,23 @@ def setup_logging(
     root_logger.info(f"Logging configured at {level.upper()} level")
 
 
+def ensure_logging(level: str = "INFO") -> None:
+    """
+    Ensure logging is configured once to avoid repeated basicConfig calls.
+
+    Args:
+        level: Logging level to use if no handlers exist.
+    """
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        return
+
+    logging.basicConfig(
+        level=getattr(logging, level.upper()),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+
 def get_logger(name: str) -> logging.Logger:
     """
     Get a logger for a specific module.

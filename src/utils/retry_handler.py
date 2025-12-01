@@ -4,10 +4,12 @@ Improves reliability of AI Agent operations.
 """
 import time
 import functools
-from typing import Callable, Optional, List, Any, Type
+from typing import Callable, List, Any, Type
 import logging
 
-logging.basicConfig(level=logging.INFO)
+from src.utils.logger import ensure_logging
+
+ensure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -283,34 +285,4 @@ def get_circuit_breaker(provider: str) -> CircuitBreaker:
     return _circuit_breakers[provider]
 
 
-# Example usage
-if __name__ == "__main__":
-    # Test retry handler
-    handler = RetryHandler(max_retries=3)
-
-    attempt_count = 0
-
-    def flaky_function():
-        nonlocal attempt_count
-        attempt_count += 1
-
-        if attempt_count < 3:
-            raise Exception("Temporary failure")
-
-        return "Success!"
-
-    result = handler.retry_with_backoff(flaky_function)
-    print(f"Result: {result}, Attempts: {attempt_count}")
-
-    # Test fallback decorator
-    @retry_with_fallback(["claude", "kimi", "qwen"], max_retries_per_provider=2)
-    def analyze_text(text, provider=None):
-        if provider == "claude":
-            raise Exception("Claude unavailable")
-        return f"Analysis by {provider}"
-
-    try:
-        result = analyze_text("Sample text")
-        print(f"Fallback result: {result}")
-    except Exception as e:
-        print(f"All providers failed: {e}")
+# Example usage removed; the previous demo used a module-level nonlocal and broke imports

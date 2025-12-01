@@ -3,6 +3,7 @@ Cost tracking and quota management for AI API usage.
 Helps monitor spending and prevent overages.
 """
 import json
+import os
 from typing import Dict, Optional, List
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -26,24 +27,27 @@ class UsageRecord:
 class CostTracker:
     """Track API costs and enforce quotas."""
 
-    # Pricing per 1M tokens (as of 2025)
+    # Pricing per 1K tokens (as of 2025). Currency defaults to USD unless noted.
     PRICING = {
         "claude": {
             "claude-3-5-sonnet-20241022": {
-                "input": 3.00,    # $3 per 1M input tokens
-                "output": 15.00   # $15 per 1M output tokens
+                "input_per_1k": 0.003,    # $3 per 1M input tokens
+                "output_per_1k": 0.015,
+                "currency": "USD"
             }
         },
         "kimi": {
             "moonshot-v1-8k": {
-                "input": 0.20,    # ¥0.2 per 1K tokens (~$0.20 per 1M)
-                "output": 0.20
+                "input_per_1k": 0.20,     # ¥0.2 per 1K tokens
+                "output_per_1k": 0.20,
+                "currency": "CNY"
             }
         },
         "qwen": {
             "qwen-turbo": {
-                "input": 0.60,    # ¥0.6 per 1K tokens (~$0.60 per 1M)
-                "output": 0.60
+                "input_per_1k": 0.60,     # ¥0.6 per 1K tokens
+                "output_per_1k": 0.60,
+                "currency": "CNY"
             }
         }
     }
@@ -84,6 +88,20 @@ class CostTracker:
         except Exception as e:
             print(f"Error saving usage records: {e}")
 
+    def _get_exchange_rate(self, currency: str) -> float:
+        """
+        Convert provider currency to USD.
+
+        Rates can be overridden via environment variables (e.g., CNY_TO_USD_RATE).
+        """
+        if currency.upper() == "USD":
+            return 1.0
+
+        if currency.upper() == "CNY":
+            return float(os.getenv("CNY_TO_USD_RATE", "0.14"))
+
+        return 1.0
+
     def estimate_cost(
         self,
         provider: str,
@@ -92,7 +110,7 @@ class CostTracker:
         completion_tokens: int
     ) -> float:
         """
-        Estimate cost for given usage.
+        Estimate cost for given usage (returns USD).
 
         Args:
             provider: AI provider name
@@ -106,14 +124,18 @@ class CostTracker:
         if provider not in self.PRICING:
             return 0.0
 
-        if model not in self.PRICING[provider]:
+        provider_pricing = self.PRICING[provider]
+        pricing = provider_pricing.get(model)
+
+        if pricing is None:
             # Use first available model pricing as fallback
-            model = list(self.PRICING[provider].keys())[0]
+            pricing = next(iter(provider_pricing.values()))
 
-        pricing = self.PRICING[provider][model]
+        currency = pricing.get("currency", "USD").upper()
+        rate = self._get_exchange_rate(currency)
 
-        input_cost = (prompt_tokens / 1_000_000) * pricing["input"]
-        output_cost = (completion_tokens / 1_000_000) * pricing["output"]
+        input_cost = (prompt_tokens / 1000) * pricing["input_per_1k"] * rate
+        output_cost = (completion_tokens / 1000) * pricing["output_per_1k"] * rate
 
         return input_cost + output_cost
 

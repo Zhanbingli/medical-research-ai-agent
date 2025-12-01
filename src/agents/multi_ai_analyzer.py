@@ -15,6 +15,10 @@ from src.utils import AIClientManager
 class MultiAIAnalyzer:
     """Analyze medical literature using multiple AI providers."""
 
+    # Conservative caps to avoid overlong prompts and runaway costs
+    MAX_ABSTRACT_CHARS = 1200
+    MAX_COMBINED_CONTEXT_CHARS = 12000
+
     def __init__(self, default_provider: Optional[str] = None):
         """
         Initialize analyzer with AI client manager.
@@ -102,24 +106,22 @@ class MultiAIAnalyzer:
             return "No articles provided for synthesis."
 
         # Prepare article summaries
-        article_texts = []
-        for i, article in enumerate(articles, 1):
-            title = article.get("title", "")
-            abstract = article.get("abstract", "")
-            year = article.get("pub_date", "").split()[0] if article.get("pub_date") else ""
+        article_texts = [
+            self._format_article_block(i, article)
+            for i, article in enumerate(articles, 1)
+        ]
 
-            article_texts.append(
-                f"Article {i}:\n"
-                f"Title: {title}\n"
-                f"Year: {year}\n"
-                f"Abstract: {abstract}\n"
-            )
+        combined_text = self._merge_blocks_with_limit(article_texts)
+        truncation_note = ""
 
-        combined_text = "\n\n".join(article_texts)
+        if len(combined_text) < sum(len(block) for block in article_texts):
+            truncation_note = "\n\nNote: Some abstracts were truncated for length and cost control."
 
         prompt = f"""You are a medical research expert. Analyze the following {len(articles)} research articles and provide a comprehensive synthesis.
 
 {combined_text}
+
+{truncation_note}
 
 Please provide:
 1. **Key Findings**: Main conclusions across all studies
@@ -200,15 +202,24 @@ Format as a structured list."""
             return "No articles provided to answer the question."
 
         # Build context from articles
-        context = []
+        context_blocks = []
         for i, article in enumerate(articles, 1):
-            context.append(
+            abstract = self._truncate_text(
+                article.get("abstract", ""),
+                self.MAX_ABSTRACT_CHARS
+            )
+
+            context_blocks.append(
                 f"[{i}] {article.get('title', '')}\n"
-                f"Abstract: {article.get('abstract', '')}\n"
+                f"Abstract: {abstract}\n"
                 f"PMID: {article.get('pmid', '')}"
             )
 
-        context_text = "\n\n".join(context)
+        context_text = self._merge_blocks_with_limit(context_blocks)
+        truncation_note = ""
+
+        if len(context_text) < sum(len(block) for block in context_blocks):
+            truncation_note = "\n\nNote: Some abstracts were truncated to fit within model context."
 
         prompt = f"""You are a medical research assistant. Based on the following research articles, answer this question:
 
@@ -216,6 +227,8 @@ Question: {question}
 
 Available Research:
 {context_text}
+
+{truncation_note}
 
 Provide a comprehensive answer that:
 1. Directly addresses the question
@@ -263,6 +276,48 @@ Answer:"""
                 )
 
         return results
+
+    def _truncate_text(self, text: str, limit: int) -> str:
+        """Truncate text to a character limit with ellipsis."""
+        if len(text) <= limit:
+            return text
+        return text[:limit].rstrip() + "..."
+
+    def _format_article_block(self, index: int, article: Dict) -> str:
+        """Format an article block with safe truncation."""
+        title = article.get("title", "")
+        abstract = article.get("abstract", "")
+        year = article.get("pub_date", "").split()[0] if article.get("pub_date") else ""
+
+        abstract = self._truncate_text(abstract, self.MAX_ABSTRACT_CHARS)
+
+        return (
+            f"Article {index}:\n"
+            f"Title: {title}\n"
+            f"Year: {year}\n"
+            f"Abstract: {abstract}\n"
+        )
+
+    def _merge_blocks_with_limit(self, blocks: List[str]) -> str:
+        """Merge article blocks while respecting a combined character budget."""
+        merged = []
+        total_len = 0
+
+        for block in blocks:
+            if total_len >= self.MAX_COMBINED_CONTEXT_CHARS:
+                break
+
+            remaining = self.MAX_COMBINED_CONTEXT_CHARS - total_len
+
+            if len(block) > remaining:
+                merged.append(block[:remaining].rstrip() + "...")
+                total_len = self.MAX_COMBINED_CONTEXT_CHARS
+                break
+
+            merged.append(block)
+            total_len += len(block)
+
+        return "\n\n".join(merged)
 
     def _build_summary_prompt(
         self,

@@ -15,8 +15,9 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+from src.utils.logger import ensure_logging
+
+ensure_logging()
 logger = logging.getLogger(__name__)
 
 

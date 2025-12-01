@@ -1,0 +1,11 @@
+services:
+  med-paper:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    # Uncomment to persist caches locally
+    # volumes:
+    #   - ./cache:/app/cache
+    #   - ./data:/app/data

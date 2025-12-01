@@ -17,47 +17,22 @@ An advanced AI-powered tool for searching, analyzing, and synthesizing medical l
 
 ### Prerequisites
 
-- Python 3.10 or higher
-- At least one AI provider API key:
-  - **Claude**: https://console.anthropic.com/
-  - **Kimi**: https://platform.moonshot.cn/
-  - **Qwen**: https://dashscope.console.aliyun.com/
+- Docker (or Docker Desktop) with BuildKit enabled
+- 至少配置一个 AI 提供商 API Key（填入 `.env`）
 
-### Installation
-
-#### Option 1: Automated Setup (Recommended)
+### Run (Docker only, ultra-simple)
 
 ```bash
-# 1. Run the setup script
-./setup.sh
+# 1) 准备环境变量
+.env
+# 填写 ANTHROPIC_API_KEY / KIMI_API_KEY / QWEN_API_KEY / PUBMED_EMAIL 等
 
-# 2. Edit .env file and add your API keys
-nano .env
+# 2) 一键启动
+docker-compose up --build
 
-# 3. Test the installation
-source venv/bin/activate
-python test_setup.py
-
-# 4. Launch the app
-streamlit run app.py
-```
-
-#### Option 2: Manual Installation
-
-```bash
-# 1. Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Configure environment
-cp .env.example .env
-# Edit .env and add your API keys
-
-# 4. Run the application
-streamlit run app.py
+# 若不使用 compose：
+# docker build -t med-paper .
+# docker run --env-file .env -p 8501:8501 med-paper
 ```
 
 ### Configuration

@@ -10,8 +10,9 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+from src.utils.logger import ensure_logging
+
+ensure_logging()
 logger = logging.getLogger(__name__)
 
 
