@@ -183,41 +183,6 @@ def with_log_level(logger: logging.Logger, level: str):
     return LogContext(logger, level)
 
 
-# Module-level configuration on import
-_initialized = False
-
-
-def init_logging_from_config():
-    """Initialize logging from configuration."""
-    global _initialized
-
-    if _initialized:
-        return
-
-    try:
-        from src.utils.config import get_config
-
-        config = get_config()
-        setup_logging(
-            level=config.log.level,
-            log_file=config.log.file,
-            format_string=config.log.format
-        )
-
-        _initialized = True
-
-    except Exception as e:
-        # Fallback to default logging if config fails
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        logging.getLogger(__name__).warning(
-            f"Failed to load logging from config: {e}. Using defaults."
-        )
-        _initialized = True
-
-
 # Example usage and testing
 if __name__ == "__main__":
     # Test basic logging

@@ -1,8 +1,8 @@
-# 📚 Medical Literature Agent - Multi-AI Edition
+# 📚 Medical Literature Agent (Lightweight)
 
 ![screenshot](screenshot.png)
 
-An AI assistant for searching, analyzing, and synthesizing medical literature from PubMed. Built with Python + Streamlit, supporting **multiple AI providers**: Claude, Kimi, and Qwen.
+An AI assistant for searching, analyzing, and synthesizing medical literature from PubMed. Built with Python + Streamlit, supporting **multiple AI providers**: Claude, Kimi, and Qwen. This repo is now trimmed down to the core flow (PubMed + AI analysis) for faster installs and fewer moving parts.
 
 ## ✨ Features
 
@@ -11,6 +11,11 @@ An AI assistant for searching, analyzing, and synthesizing medical literature fr
 - 📊 Multi-article synthesis: combined insights, commonalities, and differences
 - 💬 Q&A with citations: answers grounded in retrieved articles
 - 🔬 Model comparison: see how different models respond to the same paper
+
+## 🧹 What was removed to keep it lean
+- Multi-source search (Semantic Scholar / Europe PMC)
+- Advanced agent mode, caching, and cost tracking layers
+- Heavy optional deps (pandas/numpy/PDF tooling, httpx/requests, dev linters)
 
 ## 🚀 Quick Start (Docker)
 

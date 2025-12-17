@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2025-12-01
+
+### Changed
+- ♻️ Simplified codebase to a lightweight core: PubMed client + Multi-AI analyzer
+- 📦 Trimmed dependencies to runtime essentials only
+- 🧹 Removed unused multi-source search, caching/cost tracking layers, and advanced agent UI
+- 🗒️ Dropped obsolete docs/tests tied to removed features
+
+### Breaking Changes
+- Cache/cost tracking modules, multi-source clients, and agent APIs were removed; use the streamlined `app.py` flow.
+
 ## [2.0.0] - 2025-10-17
 
 ### Added

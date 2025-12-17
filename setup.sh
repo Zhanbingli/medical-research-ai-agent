@@ -36,8 +36,8 @@ else
     echo "✓ .env file already exists"
 fi
 
-# Create necessary directories
-mkdir -p data cache
+# Create optional data directory for saved outputs
+mkdir -p data
 
 echo ""
 echo "✅ Setup complete!"

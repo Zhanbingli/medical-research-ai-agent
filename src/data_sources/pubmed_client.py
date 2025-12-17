@@ -1,14 +1,4 @@
-"""
-PubMed API client for searching and fetching medical literature.
-Uses Bio.Entrez from Biopython for NCBI E-utilities access.
-
-Improvements:
-- Added integrated caching support
-- Enhanced error handling with retries
-- Added request rate limiting
-- Improved logging
-- Added batch fetching optimization
-"""
+"""Lightweight PubMed API client using Biopython's Entrez utilities."""
 from typing import List, Dict, Optional
 from Bio import Entrez, Medline
 import os
@@ -17,56 +7,58 @@ import time
 from datetime import datetime
 import json
 
-from src.utils.logger import ensure_logging
-
-ensure_logging()
 logger = logging.getLogger(__name__)
 
-
 class PubMedClient:
-    """Client for interacting with PubMed/NCBI databases with caching and rate limiting."""
+    """Client for interacting with PubMed/NCBI databases with basic rate limiting."""
 
     # NCBI recommends max 3 requests per second without API key
     REQUEST_DELAY = 0.34  # ~3 requests per second
 
-    def __init__(self, email: Optional[str] = None, enable_cache: bool = True):
+    def __init__(self, email: Optional[str] = None, request_delay: Optional[float] = None):
         """
-        Initialize PubMed client with caching support.
+        Initialize PubMed client.
 
         Args:
             email: Email address for NCBI (recommended for better rate limits)
-            enable_cache: Enable caching for queries (default: True)
+            request_delay: Optional override for request delay in seconds
         """
         self.email = email or os.getenv("PUBMED_EMAIL", "user@example.com")
         Entrez.email = self.email
         # Set tool name for NCBI tracking
         Entrez.tool = "MedPaperAgent"
 
-        self.enable_cache = enable_cache
-        self._cache_manager = None
+        self.request_delay = self._resolve_request_delay(request_delay)
         self._last_request_time = 0
-
-        # Initialize cache if enabled
-        if self.enable_cache:
-            try:
-                from src.utils.cache_manager import get_cache_manager
-                self._cache_manager = get_cache_manager()
-                logger.info("PubMed caching enabled")
-            except Exception as e:
-                logger.warning(f"Failed to initialize cache: {e}")
-                self.enable_cache = False
 
     def _rate_limit(self):
         """Enforce rate limiting for NCBI API."""
         current_time = time.time()
         time_since_last = current_time - self._last_request_time
 
-        if time_since_last < self.REQUEST_DELAY:
-            sleep_time = self.REQUEST_DELAY - time_since_last
+        if time_since_last < self.request_delay:
+            sleep_time = self.request_delay - time_since_last
             logger.debug(f"Rate limiting: sleeping for {sleep_time:.2f}s")
             time.sleep(sleep_time)
 
         self._last_request_time = time.time()
+
+    def _resolve_request_delay(self, request_delay: Optional[float]) -> float:
+        """Resolve request delay from argument, env, or default constant."""
+        if request_delay is not None:
+            return max(request_delay, 0.0)
+
+        env_delay = os.getenv("PUBMED_REQUEST_DELAY")
+        if env_delay:
+            try:
+                parsed = float(env_delay)
+                if parsed < 0:
+                    raise ValueError("Request delay must be non-negative.")
+                return parsed
+            except Exception as exc:  # pragma: no cover - defensive parsing
+                logger.warning(f"Invalid PUBMED_REQUEST_DELAY '{env_delay}', using default: {exc}")
+
+        return self.REQUEST_DELAY
 
     def search(
         self,
@@ -195,36 +187,13 @@ class PubMedClient:
         Returns:
             List of article details
         """
-        # Check cache first
-        if self.enable_cache and self._cache_manager:
-            cached = self._cache_manager.get_pubmed_query(
-                query=query,
-                max_results=max_results,
-                **kwargs
-            )
-
-            if cached:
-                logger.info(f"Cache hit for PubMed query: '{query}'")
-                return cached
-
-        # Fetch from API
-        logger.info(f"Cache miss - fetching from PubMed API")
+        logger.info(f"Searching PubMed API")
         pmids = self.search(query, max_results, **kwargs)
 
         if not pmids:
             return []
 
         articles = self.fetch_details(pmids)
-
-        # Cache the results
-        if self.enable_cache and self._cache_manager and articles:
-            self._cache_manager.set_pubmed_query(
-                query=query,
-                max_results=max_results,
-                results=articles,
-                **kwargs
-            )
-            logger.info(f"Cached {len(articles)} articles for query: '{query}'")
 
         return articles
 
