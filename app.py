@@ -14,6 +14,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from src.data_sources import PubMedClient
 from src.agents import MultiAIAnalyzer
+from src.ui.styles import CUSTOM_CSS, PROVIDER_LABELS
+from src.ui.components import toast_error, get_provider_badge, display_article
 
 # Load environment variables
 load_dotenv()
@@ -27,42 +29,7 @@ st.set_page_config(
 )
 
 # Custom CSS
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        margin-bottom: 1rem;
-    }
-    .ai-provider-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-size: 0.875rem;
-        font-weight: bold;
-        margin-left: 0.5rem;
-    }
-    .claude-badge { background-color: #D97757; color: white; }
-    .kimi-badge { background-color: #4285F4; color: white; }
-    .qwen-badge { background-color: #FF6A00; color: white; }
-</style>
-""", unsafe_allow_html=True)
-
-
-def toast_error(message: str):
-    """Show a quick user-facing error toast."""
-    st.toast(f"❌ {message}", icon="⚠️")
-
-
-def get_provider_badge(provider: str) -> str:
-    """Get HTML badge for AI provider."""
-    badges = {
-        "claude": '<span class="ai-provider-badge claude-badge">Claude</span>',
-        "kimi": '<span class="ai-provider-badge kimi-badge">Kimi</span>',
-        "qwen": '<span class="ai-provider-badge qwen-badge">Qwen</span>'
-    }
-    return badges.get(provider.lower(), f'<span class="ai-provider-badge">{provider}</span>')
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 
 def initialize_clients():
@@ -78,89 +45,11 @@ def initialize_clients():
         return None, None
 
 
-def display_article(article, idx, analyzer=None, selected_provider=None):
-    """Display a single article with analysis options."""
-    with st.container():
-        st.markdown(f"### 📄 Article {idx + 1}")
-
-        col1, col2 = st.columns([3, 1])
-
-        with col1:
-            st.markdown(f"**{article['title']}**")
-            authors = ", ".join(article.get('authors', [])[:5])
-            if len(article.get('authors', [])) > 5:
-                authors += " et al."
-            st.caption(f"👥 {authors}")
-            st.caption(f"📰 {article.get('journal', 'N/A')} | 📅 {article.get('pub_date', 'N/A')}")
-
-        with col2:
-            pmid = article.get('pmid', '')
-            if pmid:
-                st.link_button(
-                    "View on PubMed",
-                    f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
-                    use_container_width=True
-                )
-
-        # Abstract
-        with st.expander("📝 Abstract", expanded=False):
-            abstract = article.get('abstract', 'No abstract available')
-            st.write(abstract)
-
-        # Keywords and MeSH terms
-        col1, col2 = st.columns(2)
-        with col1:
-            keywords = article.get('keywords', [])
-            if keywords:
-                st.markdown("**Keywords:** " + ", ".join(keywords[:5]))
-
-        with col2:
-            mesh_terms = article.get('mesh_terms', [])
-            if mesh_terms:
-                st.markdown("**MeSH Terms:** " + ", ".join(mesh_terms[:5]))
-
-        # AI Analysis buttons
-        if analyzer:
-            col1, col2 = st.columns(2)
-
-            with col1:
-                if st.button(f"🤖 AI Summary", key=f"summary_{idx}"):
-                    try:
-                        with st.spinner(f"Generating summary with {selected_provider.upper()}..."):
-                            start_time = time.time()
-                            summary = analyzer.summarize_article(
-                                article, style="detailed", provider=selected_provider
-                            )
-                            elapsed = time.time() - start_time
-
-                        st.info(summary)
-                        st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
-                    except Exception as e:
-                        toast_error(f"Summary failed: {e}")
-                        st.error("Failed to generate summary. Please try again.")
-
-            with col2:
-                if st.button(f"🔑 Key Points", key=f"keypoints_{idx}"):
-                    try:
-                        with st.spinner(f"Extracting key points with {selected_provider.upper()}..."):
-                            start_time = time.time()
-                            key_points = analyzer.extract_key_points(article, provider=selected_provider)
-                            elapsed = time.time() - start_time
-
-                        st.info(key_points)
-                        st.caption(f"⏱️ Generated in {elapsed:.2f}s using {selected_provider.upper()}")
-                    except Exception as e:
-                        toast_error(f"Key point extraction failed: {e}")
-                        st.error("Failed to extract key points. Please try again.")
-
-        st.divider()
-
-
 def main():
     """Main application."""
     # Header
-    st.markdown('<p class="main-header">📚 Medical Literature Agent - Multi-AI</p>', unsafe_allow_html=True)
-    st.markdown("Search PubMed and analyze with **Claude**, **Kimi (月之暗面)**, or **Qwen (通义千问)**")
+    st.markdown('<div class="main-header">📚 Medical Literature Agent</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Search PubMed and analyze with <b>Claude</b>, <b>Kimi</b>, or <b>Qwen</b></div>', unsafe_allow_html=True)
 
     # Initialize clients
     pubmed, analyzer = initialize_clients()
@@ -183,13 +72,7 @@ def main():
         # AI Provider Selection
         st.subheader("🤖 AI Provider")
 
-        provider_labels = {
-            "claude": "Claude (Anthropic)",
-            "kimi": "Kimi (月之暗面)",
-            "qwen": "Qwen (通义千问)"
-        }
-
-        display_providers = [provider_labels.get(p, p) for p in available_providers]
+        display_providers = [PROVIDER_LABELS.get(p, p) for p in available_providers]
 
         selected_display = st.selectbox(
             "Select AI Model",
